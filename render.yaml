@@ -1,0 +1,37 @@
+# Example: Blueprint deploy for Render (optional).
+# Or configure the Web Service manually in the Render dashboard.
+
+services:
+  - type: web
+    name: rentflow-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: CLIENT_URL
+        sync: false
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: DB_SSL
+        value: "true"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_MANAGER_CHAT_ID
+        sync: false
+      - key: UPLOAD_MAX_MB
+        value: "10"
+      - key: AUDIT_LOG_RETENTION_DAYS
+        value: "90"

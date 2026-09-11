@@ -1,0 +1,46 @@
+{
+  "name": "rentflow-backend",
+  "version": "1.0.0",
+  "description": "RentFlow Event Equipment & Tent Rental API",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node scripts/migrate.js"
+  },
+  "keywords": [
+    "rental",
+    "inventory",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dayjs": "^1.11.23",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.3.0",
+    "node-cache": "^5.1.2",
+    "node-cron": "^4.6.0",
+    "node-telegram-bot-api": "^2.1.0",
+    "nodemailer": "^10.0.1",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.23.0",
+    "socket.io": "^4.8.3",
+    "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

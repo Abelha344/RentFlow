@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+uploads/kyc/*
+uploads/receipts/*
+uploads/exports/*
+uploads/barcodes/*
+!uploads/**/.gitkeep
+*.log
+.DS_Store

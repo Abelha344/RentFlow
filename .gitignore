@@ -1,0 +1,27 @@
+# Root
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Backend uploads (keep placeholders)
+backend/uploads/kyc/*
+backend/uploads/receipts/*
+backend/uploads/exports/*
+backend/uploads/barcodes/*
+!backend/uploads/**/.gitkeep
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
+
+# Local
+*.xlsx
+coverage/
