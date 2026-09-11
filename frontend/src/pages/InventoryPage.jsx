@@ -277,75 +277,79 @@ export default function InventoryPage() {
           title={editingId ? `Edit — ${form.name}` : 'New item'}
           onClose={() => !saving && setForm(null)}
         >
-          <form onSubmit={saveItem} className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Name"
-              className="sm:col-span-2"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-              disabled={saving}
-            />
-            <Select
-              label="Category"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              disabled={saving}
-            >
-              {['Tents', 'Seating', 'Tables', 'Lighting', 'AV', 'Decor', 'Other'].map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </Select>
-            {!editingId && (
-              <Input
-                label="Total quantity"
-                type="number"
-                min="0"
-                value={form.total_quantity}
-                onChange={(e) => setForm({ ...form, total_quantity: e.target.value })}
-                disabled={saving}
-              />
-            )}
-            <Input
-              label="Rate per day (ETB)"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.rental_rate_per_day}
-              onChange={(e) => setForm({ ...form, rental_rate_per_day: e.target.value })}
-              disabled={saving}
-            />
-            <Input
-              label="Late fee / day (ETB)"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.late_fee_per_day}
-              onChange={(e) => setForm({ ...form, late_fee_per_day: e.target.value })}
-              disabled={saving}
-            />
-            <Input
-              label="Semi-damage fee (ETB)"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.damage_fee_semi}
-              onChange={(e) => setForm({ ...form, damage_fee_semi: e.target.value })}
-              disabled={saving}
-            />
-            <Input
-              label="Full damage fee (ETB)"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.damage_fee_full}
-              onChange={(e) => setForm({ ...form, damage_fee_full: e.target.value })}
-              disabled={saving}
-            />
-            <p className="sm:col-span-2 text-xs text-[var(--color-muted)]">
-              Damage fees: charged on return × number of damaged units. Set 0 = no penalty.
-            </p>
-            <div className="sm:col-span-2 flex justify-end gap-2 pt-1">
+          <form onSubmit={saveItem} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Name"
+                  className="sm:col-span-2"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  disabled={saving}
+                />
+                <Select
+                  label="Category"
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  disabled={saving}
+                >
+                  {['Tents', 'Seating', 'Tables', 'Lighting', 'AV', 'Decor', 'Other'].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </Select>
+                {!editingId && (
+                  <Input
+                    label="Total quantity"
+                    type="number"
+                    min="0"
+                    value={form.total_quantity}
+                    onChange={(e) => setForm({ ...form, total_quantity: e.target.value })}
+                    disabled={saving}
+                  />
+                )}
+                <Input
+                  label="Rate per day (ETB)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.rental_rate_per_day}
+                  onChange={(e) => setForm({ ...form, rental_rate_per_day: e.target.value })}
+                  disabled={saving}
+                />
+                <Input
+                  label="Late fee / day (ETB)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.late_fee_per_day}
+                  onChange={(e) => setForm({ ...form, late_fee_per_day: e.target.value })}
+                  disabled={saving}
+                />
+                <Input
+                  label="Semi-damage fee (ETB)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.damage_fee_semi}
+                  onChange={(e) => setForm({ ...form, damage_fee_semi: e.target.value })}
+                  disabled={saving}
+                />
+                <Input
+                  label="Full damage fee (ETB)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.damage_fee_full}
+                  onChange={(e) => setForm({ ...form, damage_fee_full: e.target.value })}
+                  disabled={saving}
+                />
+                <p className="sm:col-span-2 text-xs text-[var(--color-muted)]">
+                  Damage fees: charged on return × number of damaged units. Set 0 = no penalty.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--color-line)] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
               <Button variant="secondary" type="button" disabled={saving} onClick={() => setForm(null)}>
                 Cancel
               </Button>
@@ -362,45 +366,47 @@ export default function InventoryPage() {
           title={`Update stock — ${adjust.name}`}
           onClose={() => !adjustSaving && setAdjust(null)}
         >
-          <form onSubmit={saveAdjust} className="space-y-3">
-            <p className="text-sm text-[var(--color-muted)]">
-              Fix warehouse count only. Customer penalties → Edit fees.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
+          <form onSubmit={saveAdjust} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+              <p className="text-sm text-[var(--color-muted)]">
+                Fix warehouse count only. Customer penalties → Edit fees.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Input
+                  label="Good"
+                  type="number"
+                  min="0"
+                  value={adjust.qty_good}
+                  disabled={adjustSaving}
+                  onChange={(e) => setAdjust({ ...adjust, qty_good: e.target.value })}
+                />
+                <Input
+                  label="Semi"
+                  type="number"
+                  min="0"
+                  value={adjust.qty_semi_damaged}
+                  disabled={adjustSaving}
+                  onChange={(e) => setAdjust({ ...adjust, qty_semi_damaged: e.target.value })}
+                />
+                <Input
+                  label="Damaged"
+                  type="number"
+                  min="0"
+                  value={adjust.qty_damaged}
+                  disabled={adjustSaving}
+                  onChange={(e) => setAdjust({ ...adjust, qty_damaged: e.target.value })}
+                />
+              </div>
               <Input
-                label="Good"
-                type="number"
-                min="0"
-                value={adjust.qty_good}
+                label="Reason"
+                placeholder="e.g. Stock count"
+                value={adjust.reason}
                 disabled={adjustSaving}
-                onChange={(e) => setAdjust({ ...adjust, qty_good: e.target.value })}
-              />
-              <Input
-                label="Semi"
-                type="number"
-                min="0"
-                value={adjust.qty_semi_damaged}
-                disabled={adjustSaving}
-                onChange={(e) => setAdjust({ ...adjust, qty_semi_damaged: e.target.value })}
-              />
-              <Input
-                label="Damaged"
-                type="number"
-                min="0"
-                value={adjust.qty_damaged}
-                disabled={adjustSaving}
-                onChange={(e) => setAdjust({ ...adjust, qty_damaged: e.target.value })}
+                onChange={(e) => setAdjust({ ...adjust, reason: e.target.value })}
+                required
               />
             </div>
-            <Input
-              label="Reason"
-              placeholder="e.g. Stock count"
-              value={adjust.reason}
-              disabled={adjustSaving}
-              onChange={(e) => setAdjust({ ...adjust, reason: e.target.value })}
-              required
-            />
-            <div className="flex justify-end gap-2">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--color-line)] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
               <Button
                 variant="secondary"
                 type="button"
@@ -422,15 +428,26 @@ export default function InventoryPage() {
 
 function Modal({ title, children, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4 bg-black/40">
-      <div className="w-full max-w-lg card-panel p-5 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-xl">{title}</h3>
-          <button type="button" onClick={onClose} className="text-[var(--color-muted)]">
-            ✕
-          </button>
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40">
+      <div className="flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="card-panel flex w-full max-w-lg max-h-[min(92dvh,56rem)] flex-col overflow-hidden shadow-xl mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-0"
+        >
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-line)] px-4 py-3 sm:px-5 sm:py-4">
+            <h3 className="font-display text-xl leading-tight">{title}</h3>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-surface)]"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         </div>
-        {children}
       </div>
     </div>
   );

@@ -343,88 +343,110 @@ export default function CustomersPage() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4 bg-black/40">
-          <form onSubmit={save} className="w-full max-w-lg card-panel p-5 space-y-3">
-            <h3 className="font-display text-xl">{isEditing ? 'Edit customer' : 'New customer'}</h3>
-            <p className="text-xs text-[var(--color-muted)]">
-              Fields marked <span className="text-red-600">*</span> are required
-            </p>
-            <Input
-              label="Full name"
-              value={form.full_name}
-              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-              required
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Phone"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                required
-              />
-              <Input
-                label="Email"
-                type="email"
-                optional
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <Textarea
-              label="Address"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              required
-              rows={2}
-              placeholder="City, subcity, street / landmark"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="ID number"
-                optional
-                value={form.id_number}
-                onChange={(e) => setForm({ ...form, id_number: e.target.value })}
-              />
-              <Input
-                label="Rating (1-5)"
-                type="number"
-                min="1"
-                max="5"
-                optional
-                value={form.rating}
-                onChange={(e) => setForm({ ...form, rating: e.target.value })}
-              />
-            </div>
-            <Input
-              label="KYC scan (ID / passport / license)"
-              type="file"
-              accept="image/*,.avif,application/pdf"
-              required={!isEditing || !existingKyc}
-              optional={isEditing && Boolean(existingKyc)}
-              onChange={(e) => setIdCard(e.target.files?.[0] || null)}
-            />
-            {isEditing && existingKyc && (
-              <p className="text-xs text-[var(--color-muted)]">
-                Current KYC on file — leave empty to keep it, or choose a new file to replace.{' '}
-                <a className="text-[var(--color-brand)] underline" href={assetUrl(existingKyc)} target="_blank" rel="noreferrer">
-                  View current
-                </a>
-              </p>
-            )}
-            <Textarea
-              label="Notes"
-              optional
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-            {formError && (
-              <p className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{formError}</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" type="button" onClick={closeForm}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
-            </div>
-          </form>
+        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40">
+          <div className="flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
+            <form
+              onSubmit={save}
+              className="card-panel flex w-full max-w-lg max-h-[min(92dvh,56rem)] flex-col overflow-hidden shadow-xl mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-0"
+            >
+              <div className="shrink-0 border-b border-[var(--color-line)] px-4 py-3 sm:px-5 sm:py-4">
+                <h3 className="font-display text-xl">
+                  {isEditing ? 'Edit customer' : 'New customer'}
+                </h3>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">
+                  Fields marked <span className="text-red-600">*</span> are required
+                </p>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                <Input
+                  label="Full name"
+                  value={form.full_name}
+                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  required
+                />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Input
+                    label="Phone"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="Email"
+                    type="email"
+                    optional
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+                <Textarea
+                  label="Address"
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  required
+                  rows={2}
+                  placeholder="City, subcity, street / landmark"
+                />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Input
+                    label="ID number"
+                    optional
+                    value={form.id_number}
+                    onChange={(e) => setForm({ ...form, id_number: e.target.value })}
+                  />
+                  <Input
+                    label="Rating (1-5)"
+                    type="number"
+                    min="1"
+                    max="5"
+                    optional
+                    value={form.rating}
+                    onChange={(e) => setForm({ ...form, rating: e.target.value })}
+                  />
+                </div>
+                <Input
+                  label="KYC scan (ID / passport / license)"
+                  type="file"
+                  accept="image/*,.avif,application/pdf"
+                  required={!isEditing || !existingKyc}
+                  optional={isEditing && Boolean(existingKyc)}
+                  onChange={(e) => setIdCard(e.target.files?.[0] || null)}
+                />
+                {isEditing && existingKyc && (
+                  <p className="text-xs text-[var(--color-muted)]">
+                    Current KYC on file — leave empty to keep it, or choose a new file to replace.{' '}
+                    <a
+                      className="text-[var(--color-brand)] underline"
+                      href={assetUrl(existingKyc)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View current
+                    </a>
+                  </p>
+                )}
+                <Textarea
+                  label="Notes"
+                  optional
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+                {formError && (
+                  <p className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{formError}</p>
+                )}
+              </div>
+
+              <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--color-line)] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
+                <Button variant="secondary" type="button" onClick={closeForm}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
