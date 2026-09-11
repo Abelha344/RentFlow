@@ -232,8 +232,12 @@ async function approvePayment(req, res, next) {
         });
       }
 
-      const sets = ['status = $1', 'reference_number = $2', 'booking_id = $3', 'customer_by = $4'];
-      const params = [status, txn, bookingId, req.user.id];
+      const sets = ['status = $1', 'reference_number = $2', 'booking_id = $3'];
+      const params = [status, txn, bookingId];
+
+      // payments has recorded_by / customer_id — not customer_by
+      params.push(req.user.id);
+      sets.push(`recorded_by = COALESCE(recorded_by, $${params.length})`);
 
       if (nextType) {
         params.push(nextType);

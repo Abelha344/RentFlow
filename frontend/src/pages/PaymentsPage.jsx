@@ -201,6 +201,8 @@ export default function PaymentsPage() {
     method: 'telebirr',
   });
   const [officialReceipt, setOfficialReceipt] = useState(null);
+  const [reviewError, setReviewError] = useState('');
+  const [formError, setFormError] = useState('');
 
   const load = async () => {
     const [p, b] = await Promise.all([api.get('/payments'), api.get('/bookings')]);
@@ -325,6 +327,7 @@ export default function PaymentsPage() {
       return;
     }
     setNotice('');
+    setFormError('');
     setForm({
       booking_id: booking.id,
       amount: String(defaults.amount),
@@ -343,6 +346,7 @@ export default function PaymentsPage() {
     savingLock.current = true;
     setSaving(true);
     setNotice('');
+    setFormError('');
     const wasRefund = form.type === 'deposit_refund';
     const wasDeposit = form.type === 'collateral_deposit';
     try {
@@ -352,6 +356,7 @@ export default function PaymentsPage() {
       await api.post('/payments', fd);
       setShowForm(false);
       setReceipt(null);
+      setFormError('');
       setViewFilter('waiting_approval');
       setNotice(
         wasRefund
@@ -362,7 +367,12 @@ export default function PaymentsPage() {
       );
       await load();
     } catch (err) {
-      setNotice(err.response?.data?.message || 'Could not record payment. Try again.');
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.errors?.[0]?.message ||
+        err.message ||
+        'Could not record payment. Try again.';
+      setFormError(msg);
     } finally {
       savingLock.current = false;
       setSaving(false);
@@ -390,6 +400,7 @@ export default function PaymentsPage() {
       method: payment.method || 'telebirr',
     });
     setOfficialReceipt(null);
+    setReviewError('');
     setNotice('');
   };
 
@@ -428,22 +439,23 @@ export default function PaymentsPage() {
     e?.preventDefault?.();
     if (!review || !canApprove || approvingId) return;
     if (!String(reviewForm.reference_number || '').trim()) {
-      setNotice('Enter the verified transaction ID before approving.');
+      setReviewError('Enter the verified transaction ID before approving.');
       return;
     }
     if (!reviewForm.booking_id) {
-      setNotice('Select the booking this payment belongs to.');
+      setReviewError('Select the booking this payment belongs to.');
       return;
     }
     if (
       reviewForm.type === 'deposit_refund' &&
       bookings.find((b) => b.id === reviewForm.booking_id)?.status !== 'returned'
     ) {
-      setNotice('Deposit refund can only be approved after return check-in.');
+      setReviewError('Deposit refund can only be approved after return check-in.');
       return;
     }
 
     setApprovingId(review.id);
+    setReviewError('');
     setNotice('');
     try {
       const fd = new FormData();
@@ -459,19 +471,14 @@ export default function PaymentsPage() {
       const payment = data?.data;
       setReview(null);
       setOfficialReceipt(null);
+      setReviewError('');
 
       if (payment?.type === 'collateral_deposit') {
         setLeaseHintBookingId(payment.booking_id);
         setNotice(
           data.message ||
-            'Deposit approved — official receipt sent to customer on Telegram. Print lease if needed.'
+            'Deposit approved — official receipt sent to customer on Telegram. Use Print lease below.'
         );
-        try {
-          const lease = await api.post(`/bookings/${payment.booking_id}/work-order`);
-          window.open(assetUrl(lease.data.data.url), '_blank');
-        } catch {
-          /* optional */
-        }
       } else {
         setLeaseHintBookingId('');
         setNotice(
@@ -481,7 +488,12 @@ export default function PaymentsPage() {
       }
       await load();
     } catch (err) {
-      setNotice(err.response?.data?.message || 'Could not approve payment.');
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.errors?.[0]?.message ||
+        err.message ||
+        'Could not approve payment.';
+      setReviewError(msg);
     } finally {
       setApprovingId('');
     }
@@ -1001,274 +1013,308 @@ export default function PaymentsPage() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4 bg-black/40">
-          <form onSubmit={create} className="w-full max-w-md card-panel p-5 space-y-3">
-            <h3 className="font-display text-xl">
-              {form.type === 'deposit_refund'
-                ? 'Refund deposit'
-                : form.type === 'collateral_deposit'
-                  ? 'Collect deposit'
-                  : 'Collect rental'}
-            </h3>
-            <p className="text-xs text-[var(--color-muted)]">
-              {form.type === 'deposit_refund'
-                ? 'Record the refund, then approve it under Waiting approval'
-                : 'Record now → approve under Waiting approval'}
-            </p>
-            <Select
-              label="Customer booking"
-              value={form.booking_id}
-              onChange={(e) => {
-                const id = e.target.value;
-                const b = bookings.find((x) => x.id === id);
-                if (!b) {
-                  setForm({ ...form, booking_id: id });
-                  return;
-                }
-                const intent =
-                  Number(b.deposit_unpaid) > 0
-                    ? 'deposit'
-                    : Number(b.rental_unpaid) > 0
-                      ? 'rental'
-                      : 'refund';
-                const defaults = intentDefaults(b, intent);
-                setForm({
-                  ...form,
-                  booking_id: id,
-                  amount: defaults?.amount > 0 ? String(defaults.amount) : '',
-                  type: defaults?.type || form.type,
-                });
-              }}
-              required
+        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40">
+          <div className="flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
+            <form
+              onSubmit={create}
+              className="card-panel mb-[max(0.5rem,env(safe-area-inset-bottom))] flex max-h-[min(92dvh,40rem)] w-full max-w-md flex-col overflow-hidden shadow-xl sm:mb-0"
             >
-              <option value="">Select…</option>
-              {bookings
-                .filter((b) => b.status !== 'cancelled')
-                .map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.customer_name} · deposit {formatMoney(b.deposit_unpaid)} · rental{' '}
-                    {formatMoney(b.rental_unpaid)}
-                  </option>
-                ))}
-            </Select>
-            <Input
-              label={form.type === 'deposit_refund' ? 'Amount to refund' : 'Amount received'}
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              required
-              disabled={saving}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="Payment type"
-                value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value })}
-                disabled={saving}
-              >
-                <optgroup label="At rent">
-                  <option value="collateral_deposit">{labelPaymentType('collateral_deposit')}</option>
-                </optgroup>
-                {bookings.find((b) => b.id === form.booking_id)?.status === 'returned' ? (
-                  <>
-                    <optgroup label="Rental (after return)">
-                      <option value="down_payment">{labelPaymentType('down_payment')}</option>
-                      <option value="installment">{labelPaymentType('installment')}</option>
-                      <option value="final_settlement">{labelPaymentType('final_settlement')}</option>
+              <div className="shrink-0 border-b border-[var(--color-line)] px-4 py-3 sm:px-5">
+                <h3 className="font-display text-xl">
+                  {form.type === 'deposit_refund'
+                    ? 'Refund deposit'
+                    : form.type === 'collateral_deposit'
+                      ? 'Collect deposit'
+                      : 'Collect rental'}
+                </h3>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">
+                  {form.type === 'deposit_refund'
+                    ? 'Record the refund, then approve it under Waiting approval'
+                    : 'Record now → approve under Waiting approval'}
+                </p>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                <Select
+                  label="Customer booking"
+                  value={form.booking_id}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    const b = bookings.find((x) => x.id === id);
+                    if (!b) {
+                      setForm({ ...form, booking_id: id });
+                      return;
+                    }
+                    const intent =
+                      Number(b.deposit_unpaid) > 0
+                        ? 'deposit'
+                        : Number(b.rental_unpaid) > 0
+                          ? 'rental'
+                          : 'refund';
+                    const defaults = intentDefaults(b, intent);
+                    setForm({
+                      ...form,
+                      booking_id: id,
+                      amount: defaults?.amount > 0 ? String(defaults.amount) : '',
+                      type: defaults?.type || form.type,
+                    });
+                  }}
+                  required
+                >
+                  <option value="">Select…</option>
+                  {bookings
+                    .filter((b) => b.status !== 'cancelled')
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.customer_name} · deposit {formatMoney(b.deposit_unpaid)} · rental{' '}
+                        {formatMoney(b.rental_unpaid)}
+                      </option>
+                    ))}
+                </Select>
+                <Input
+                  label={form.type === 'deposit_refund' ? 'Amount to refund' : 'Amount received'}
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  required
+                  disabled={saving}
+                />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Select
+                    label="Payment type"
+                    value={form.type}
+                    onChange={(e) => setForm({ ...form, type: e.target.value })}
+                    disabled={saving}
+                  >
+                    <optgroup label="At rent">
+                      <option value="collateral_deposit">
+                        {labelPaymentType('collateral_deposit')}
+                      </option>
                     </optgroup>
-                    <optgroup label="After return">
-                      <option value="deposit_refund">{labelPaymentType('deposit_refund')}</option>
-                    </optgroup>
-                  </>
-                ) : (
-                  <optgroup label="After return check-in only">
-                    <option value="final_settlement" disabled>
-                      Rental / refund — after return
-                    </option>
-                  </optgroup>
+                    {bookings.find((b) => b.id === form.booking_id)?.status === 'returned' ? (
+                      <>
+                        <optgroup label="Rental (after return)">
+                          <option value="down_payment">{labelPaymentType('down_payment')}</option>
+                          <option value="installment">{labelPaymentType('installment')}</option>
+                          <option value="final_settlement">
+                            {labelPaymentType('final_settlement')}
+                          </option>
+                        </optgroup>
+                        <optgroup label="After return">
+                          <option value="deposit_refund">
+                            {labelPaymentType('deposit_refund')}
+                          </option>
+                        </optgroup>
+                      </>
+                    ) : (
+                      <optgroup label="After return check-in only">
+                        <option value="final_settlement" disabled>
+                          Rental / refund — after return
+                        </option>
+                      </optgroup>
+                    )}
+                  </Select>
+                  <Select
+                    label={form.type === 'deposit_refund' ? 'Refund method' : 'How did they pay?'}
+                    value={form.method}
+                    onChange={(e) => setForm({ ...form, method: e.target.value })}
+                    disabled={saving}
+                  >
+                    {['cash', 'bank_transfer', 'telebirr'].map((m) => (
+                      <option key={m} value={m}>
+                        {labelPaymentMethod(m)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <Input
+                  label="Reference # (receipt / Telebirr)"
+                  value={form.reference_number}
+                  onChange={(e) => setForm({ ...form, reference_number: e.target.value })}
+                  disabled={saving}
+                />
+                <Input
+                  label="Photo or PDF of proof"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setReceipt(e.target.files?.[0] || null)}
+                  disabled={saving}
+                />
+                {formError && (
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>
                 )}
-              </Select>
-              <Select
-                label={form.type === 'deposit_refund' ? 'Refund method' : 'How did they pay?'}
-                value={form.method}
-                onChange={(e) => setForm({ ...form, method: e.target.value })}
-                disabled={saving}
-              >
-                {['cash', 'bank_transfer', 'telebirr'].map((m) => (
-                  <option key={m} value={m}>
-                    {labelPaymentMethod(m)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <Input
-              label="Reference # (receipt / Telebirr)"
-              value={form.reference_number}
-              onChange={(e) => setForm({ ...form, reference_number: e.target.value })}
-              disabled={saving}
-            />
-            <Input
-              label="Photo or PDF of proof"
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setReceipt(e.target.files?.[0] || null)}
-              disabled={saving}
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                type="button"
-                disabled={saving}
-                onClick={() => setShowForm(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {submitLabel()}
-              </Button>
-            </div>
-          </form>
+              </div>
+
+              <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--color-line)] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    setShowForm(false);
+                    setFormError('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {submitLabel()}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
       {review && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <form
-            onSubmit={submitReview}
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white border border-[var(--color-line)] shadow-xl p-5 space-y-3"
-          >
-            <div>
-              <h3 className="font-display text-xl">Verify &amp; approve payment</h3>
-              <p className="text-sm text-[var(--color-muted)] mt-1">
-                {review.customer_name} · customer proof below · confirm transaction ID then approve
-              </p>
-            </div>
-
-            {review.receipt_url && (
-              <div className="rounded-lg border border-[var(--color-line)] p-3 space-y-2">
-                <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">
-                  Customer uploaded proof
+        <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-black/40">
+          <div className="flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
+            <form
+              onSubmit={submitReview}
+              className="card-panel mb-[max(0.5rem,env(safe-area-inset-bottom))] flex max-h-[min(92dvh,56rem)] w-full max-w-lg flex-col overflow-hidden border border-[var(--color-line)] shadow-xl sm:mb-0"
+            >
+              <div className="shrink-0 border-b border-[var(--color-line)] px-4 py-3 sm:px-5">
+                <h3 className="font-display text-xl">Verify &amp; approve payment</h3>
+                <p className="mt-1 text-sm text-[var(--color-muted)]">
+                  {review.customer_name} · confirm transaction ID then approve
                 </p>
-                {/\.(pdf)(\?|$)/i.test(String(review.receipt_url || "")) ? (
-                  <a
-                    className="text-sm text-[var(--color-brand)] underline"
-                    href={assetUrl(review.receipt_url)}
-                    target="_blank"
-                    rel="noreferrer"
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                {review.receipt_url && (
+                  <div className="space-y-2 rounded-lg border border-[var(--color-line)] p-3">
+                    <p className="text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                      Customer uploaded proof
+                    </p>
+                    {/\.(pdf)(\?|$)/i.test(String(review.receipt_url || '')) ? (
+                      <a
+                        className="text-sm text-[var(--color-brand)] underline"
+                        href={assetUrl(review.receipt_url)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open PDF proof
+                      </a>
+                    ) : (
+                      <a href={assetUrl(review.receipt_url)} target="_blank" rel="noreferrer">
+                        <img
+                          src={assetUrl(review.receipt_url)}
+                          alt="Customer payment proof"
+                          className="max-h-40 rounded-md border border-[var(--color-line)] object-contain bg-[var(--color-surface)] sm:max-h-56"
+                        />
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                <Select
+                  label="Booking"
+                  value={reviewForm.booking_id}
+                  onChange={(e) => setReviewForm({ ...reviewForm, booking_id: e.target.value })}
+                  required
+                  disabled={Boolean(approvingId)}
+                >
+                  <option value="">Select booking…</option>
+                  {bookings
+                    .filter((b) => b.status !== 'cancelled')
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.customer_name} · {labelBookingStatus(b.status)} · deposit{' '}
+                        {formatMoney(b.deposit_unpaid)} · rental {formatMoney(b.rental_unpaid)}
+                      </option>
+                    ))}
+                </Select>
+
+                <Input
+                  label="Verified transaction ID"
+                  value={reviewForm.reference_number}
+                  onChange={(e) =>
+                    setReviewForm({ ...reviewForm, reference_number: e.target.value })
+                  }
+                  required
+                  disabled={Boolean(approvingId)}
+                  placeholder="Bank / Telebirr reference"
+                />
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Input
+                    label="Amount (ETB)"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={reviewForm.amount}
+                    onChange={(e) => setReviewForm({ ...reviewForm, amount: e.target.value })}
+                    required
+                    disabled={Boolean(approvingId)}
+                  />
+                  <Select
+                    label="Method"
+                    value={reviewForm.method}
+                    onChange={(e) => setReviewForm({ ...reviewForm, method: e.target.value })}
+                    disabled={Boolean(approvingId)}
                   >
-                    Open PDF proof
-                  </a>
-                ) : (
-                  <a href={assetUrl(review.receipt_url)} target="_blank" rel="noreferrer">
-                    <img
-                      src={assetUrl(review.receipt_url)}
-                      alt="Customer payment proof"
-                      className="max-h-56 rounded-md border border-[var(--color-line)] object-contain bg-[var(--color-surface)]"
-                    />
-                  </a>
+                    {['cash', 'bank_transfer', 'telebirr'].map((m) => (
+                      <option key={m} value={m}>
+                        {labelPaymentMethod(m)}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <Select
+                  label="Payment type"
+                  value={reviewForm.type}
+                  onChange={(e) => setReviewForm({ ...reviewForm, type: e.target.value })}
+                  disabled={Boolean(approvingId)}
+                >
+                  <option value="collateral_deposit">{labelPaymentType('collateral_deposit')}</option>
+                  <option value="down_payment">{labelPaymentType('down_payment')}</option>
+                  <option value="installment">{labelPaymentType('installment')}</option>
+                  <option value="final_settlement">{labelPaymentType('final_settlement')}</option>
+                  <option value="deposit_refund">{labelPaymentType('deposit_refund')}</option>
+                </Select>
+
+                <Input
+                  label="Official receipt file (optional — otherwise RentFlow generates PDF)"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setOfficialReceipt(e.target.files?.[0] || null)}
+                  disabled={Boolean(approvingId)}
+                />
+
+                <p className="text-xs text-[var(--color-muted)]">
+                  On approve, status becomes Approved and the official receipt is sent to the
+                  customer on Telegram automatically.
+                </p>
+
+                {reviewError && (
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {reviewError}
+                  </p>
                 )}
               </div>
-            )}
 
-            <Select
-              label="Booking"
-              value={reviewForm.booking_id}
-              onChange={(e) => setReviewForm({ ...reviewForm, booking_id: e.target.value })}
-              required
-              disabled={Boolean(approvingId)}
-            >
-              <option value="">Select booking…</option>
-              {bookings
-                .filter((b) => b.status !== 'cancelled')
-                .map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.customer_name} · {labelBookingStatus(b.status)} · deposit{' '}
-                    {formatMoney(b.deposit_unpaid)} · rental {formatMoney(b.rental_unpaid)}
-                  </option>
-                ))}
-            </Select>
-
-            <Input
-              label="Verified transaction ID"
-              value={reviewForm.reference_number}
-              onChange={(e) =>
-                setReviewForm({ ...reviewForm, reference_number: e.target.value })
-              }
-              required
-              disabled={Boolean(approvingId)}
-              placeholder="Bank / Telebirr reference"
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Amount (ETB)"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={reviewForm.amount}
-                onChange={(e) => setReviewForm({ ...reviewForm, amount: e.target.value })}
-                required
-                disabled={Boolean(approvingId)}
-              />
-              <Select
-                label="Method"
-                value={reviewForm.method}
-                onChange={(e) => setReviewForm({ ...reviewForm, method: e.target.value })}
-                disabled={Boolean(approvingId)}
-              >
-                {['cash', 'bank_transfer', 'telebirr'].map((m) => (
-                  <option key={m} value={m}>
-                    {labelPaymentMethod(m)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <Select
-              label="Payment type"
-              value={reviewForm.type}
-              onChange={(e) => setReviewForm({ ...reviewForm, type: e.target.value })}
-              disabled={Boolean(approvingId)}
-            >
-              <option value="collateral_deposit">{labelPaymentType('collateral_deposit')}</option>
-              <option value="down_payment">{labelPaymentType('down_payment')}</option>
-              <option value="installment">{labelPaymentType('installment')}</option>
-              <option value="final_settlement">{labelPaymentType('final_settlement')}</option>
-              <option value="deposit_refund">{labelPaymentType('deposit_refund')}</option>
-            </Select>
-
-            <Input
-              label="Official receipt file (optional — otherwise RentFlow generates PDF)"
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setOfficialReceipt(e.target.files?.[0] || null)}
-              disabled={Boolean(approvingId)}
-            />
-
-            <p className="text-xs text-[var(--color-muted)]">
-              On approve, status becomes Approved and the official receipt is sent to the customer
-              on Telegram automatically.
-            </p>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={Boolean(approvingId)}
-                onClick={() => {
-                  setReview(null);
-                  setOfficialReceipt(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={Boolean(approvingId)}>
-                {approvingId === review.id ? 'Approving…' : 'Approve & send receipt'}
-              </Button>
-            </div>
-          </form>
+              <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--color-line)] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={Boolean(approvingId)}
+                  onClick={() => {
+                    setReview(null);
+                    setOfficialReceipt(null);
+                    setReviewError('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={Boolean(approvingId)}>
+                  {approvingId === review.id ? 'Approving…' : 'Approve & send receipt'}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
