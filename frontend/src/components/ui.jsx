@@ -1,11 +1,21 @@
 export function PageHeader({ title, subtitle, actions }) {
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="font-display text-3xl tracking-tight text-[var(--color-ink)]">{title}</h1>
-        {subtitle && <p className="mt-1 text-[var(--color-muted)]">{subtitle}</p>}
+      <div className="min-w-0">
+        <h1 className="font-display text-2xl tracking-tight text-[var(--color-ink)] sm:text-3xl">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="mt-1 line-clamp-2 text-sm text-[var(--color-muted)] sm:line-clamp-none sm:text-base">
+            {subtitle}
+          </p>
+        )}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

@@ -153,12 +153,12 @@ export default function CustomersPage() {
   };
 
   return (
-    <div>
+    <div className="pb-20 lg:pb-0">
       <PageHeader
         title="Customer Management"
         subtitle="Profiles, KYC documents, and rating-based collateral warnings."
         actions={
-          <Button onClick={openCreate}>
+          <Button onClick={openCreate} className="w-full sm:w-auto">
             <Plus size={16} /> New customer
           </Button>
         }
@@ -174,7 +174,45 @@ export default function CustomersPage() {
               onChange={(e) => setListSearch(e.target.value)}
             />
           </div>
-          <table className="w-full text-sm">
+
+          {/* Mobile: stacked cards (full info, no column cut-off) */}
+          <ul className="divide-y divide-[var(--color-line)] lg:hidden">
+            {pagedCustomers.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => openCustomer(c.id)}
+                  className={`w-full px-3 py-3 text-left transition hover:bg-[var(--color-surface)] ${
+                    selected?.id === c.id ? 'bg-[var(--color-surface)]' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 flex-1 break-words font-medium leading-snug">
+                      {c.full_name}
+                    </p>
+                    {c.id_card_url ? <Badge tone="ok">KYC</Badge> : <Badge>No KYC</Badge>}
+                  </div>
+                  <p className="mt-1 text-sm">{c.phone || '—'}</p>
+                  <p className="mt-1 break-words text-xs text-[var(--color-muted)]">
+                    {c.address || 'No address'}
+                  </p>
+                  <p className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--color-muted)]">
+                    <Star
+                      size={14}
+                      className={
+                        c.rating < 3 ? 'text-[var(--color-warn)]' : 'text-[var(--color-brand)]'
+                      }
+                    />
+                    {c.rating}/5
+                    {c.rating < 3 ? ' · Higher collateral' : ''}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: unchanged table */}
+          <table className="hidden w-full text-sm lg:table">
             <thead className="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
               <tr>
                 <th className="p-3">Customer</th>
@@ -198,7 +236,12 @@ export default function CustomersPage() {
                   </td>
                   <td className="p-3">
                     <span className="inline-flex items-center gap-1">
-                      <Star size={14} className={c.rating < 3 ? 'text-[var(--color-warn)]' : 'text-[var(--color-brand)]'} />
+                      <Star
+                        size={14}
+                        className={
+                          c.rating < 3 ? 'text-[var(--color-warn)]' : 'text-[var(--color-brand)]'
+                        }
+                      />
                       {c.rating}/5
                     </span>
                     {c.rating < 3 && (
@@ -214,8 +257,11 @@ export default function CustomersPage() {
               ))}
             </tbody>
           </table>
+
           {!filteredCustomers.length && (
-            <EmptyState message={listSearch ? 'No customers match this search' : 'No customers yet'} />
+            <EmptyState
+              message={listSearch ? 'No customers match this search' : 'No customers yet'}
+            />
           )}
           {filteredCustomers.length > LIST_PAGE_SIZE && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-line)] px-3 py-3">
@@ -245,101 +291,53 @@ export default function CustomersPage() {
           )}
         </div>
 
-        <div className="lg:col-span-2 card-panel p-4">
-          {!selected ? (
-            <EmptyState message="Select a customer to view KYC & history" />
-          ) : (
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="font-display text-xl">{selected.full_name}</h2>
-                <Button variant="secondary" type="button" onClick={() => openEdit(selected)}>
-                  <Pencil size={14} /> Edit
-                </Button>
-              </div>
-              {selected.requires_higher_collateral && (
-                <div className="flex gap-2 rounded-lg bg-amber-50 text-amber-900 p-3">
-                  <AlertTriangle size={18} className="shrink-0" />
-                  <p>Rating below 3 — collect a higher collateral deposit before confirming bookings.</p>
-                </div>
-              )}
-              <p><span className="text-[var(--color-muted)]">Phone:</span> {selected.phone || '—'}</p>
-              <p><span className="text-[var(--color-muted)]">Address:</span> {selected.address || '—'}</p>
-              <p><span className="text-[var(--color-muted)]">Email:</span> {selected.email || '—'}</p>
-              <p><span className="text-[var(--color-muted)]">ID #:</span> {selected.id_number || '—'}</p>
-              <p><span className="text-[var(--color-muted)]">Rating:</span> {selected.rating}/5</p>
-              {Number(selected.total_outstanding) > 0.009 && (
-                <div className="rounded-lg border border-red-200 bg-red-50 text-red-900 p-3">
-                  <p className="text-xs uppercase tracking-wide opacity-80">Unpaid (open bookings)</p>
-                  <p className="text-lg font-semibold">{formatMoney(selected.total_outstanding)}</p>
-                </div>
-              )}
-              <div className="rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-3 space-y-1.5">
-                <p className="font-medium">
-                  Telegram{' '}
-                  {selected.telegram_linked ? (
-                    <Badge tone="ok">Linked</Badge>
-                  ) : (
-                    <Badge tone="warn">Not linked yet</Badge>
-                  )}
-                </p>
-                <p className="text-sm text-[var(--color-muted)] leading-relaxed">
-                  Anyone can open the RentFlow Telegram bot and tap <span className="font-medium">Start</span>.
-                  They can send a payment screenshot + transaction ID immediately. No invite code needed.
-                  After you approve in Payments, they receive the official receipt on Telegram.
-                </p>
-              </div>
-              {selected.id_card_url && (
-                <a className="text-[var(--color-brand)] underline" href={assetUrl(selected.id_card_url)} target="_blank" rel="noreferrer">
-                  View KYC document
-                </a>
-              )}
-              <div>
-                <p className="font-medium mb-2">Recent bookings</p>
-                <ul className="space-y-2">
-                  {(selected.bookings || []).map((b) => (
-                    <li
-                      key={b.id}
-                      className="rounded-lg border border-[var(--color-line)] p-2 text-sm space-y-1"
-                    >
-                      <div className="flex justify-between gap-2">
-                        <span className="capitalize">{labelBookingStatus(b.status)}</span>
-                        <span className="text-[var(--color-muted)] text-xs">
-                          {new Date(b.start_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap justify-between gap-2 text-xs">
-                        <span>Due {formatMoney(b.amount_due ?? b.total_amount)}</span>
-                        <span className="text-[var(--color-ok)]">Paid {formatMoney(b.paid_total)}</span>
-                      </div>
-                      <div className="flex justify-between gap-2 items-center">
-                        <span
-                          className={
-                            Number(b.balance_due) > 0.009
-                              ? 'font-semibold text-[var(--color-danger)]'
-                              : 'text-[var(--color-muted)]'
-                          }
-                        >
-                          Unpaid {formatMoney(b.balance_due)}
-                        </span>
-                        <Badge
-                          tone={
-                            b.pay_status === 'paid'
-                              ? 'ok'
-                              : b.pay_status === 'partial'
-                                ? 'warn'
-                                : 'danger'
-                          }
-                        >
-                          {labelPayStatus(b.pay_status)}
-                        </Badge>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
+        {/* Desktop detail panel */}
+        <div className="hidden lg:col-span-2 lg:block">
+          <div className="card-panel p-4">
+            {!selected ? (
+              <EmptyState message="Select a customer to view KYC & history" />
+            ) : (
+              <CustomerDetail selected={selected} onEdit={openEdit} />
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Mobile detail sheet — full info, scrollable */}
+      {selected && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            aria-label="Close customer details"
+            onClick={() => setSelected(null)}
+          />
+          <div className="absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--color-line)] px-4 py-3">
+              <h2 className="min-w-0 flex-1 break-words font-display text-xl leading-tight">
+                {selected.full_name}
+              </h2>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-[var(--color-muted)] hover:bg-[var(--color-surface)]"
+                aria-label="Close"
+                onClick={() => setSelected(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <CustomerDetail selected={selected} onEdit={openEdit} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile sticky register */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-white/95 px-4 py-3 backdrop-blur lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <Button onClick={openCreate} className="w-full">
+          <Plus size={16} /> New customer
+        </Button>
       </div>
 
       {showForm && (
@@ -347,7 +345,7 @@ export default function CustomersPage() {
           <div className="flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
             <form
               onSubmit={save}
-              className="card-panel flex w-full max-w-lg max-h-[min(92dvh,56rem)] flex-col overflow-hidden shadow-xl mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-0"
+              className="card-panel mb-[max(0.5rem,env(safe-area-inset-bottom))] flex max-h-[min(92dvh,56rem)] w-full max-w-lg flex-col overflow-hidden shadow-xl sm:mb-0"
             >
               <div className="shrink-0 border-b border-[var(--color-line)] px-4 py-3 sm:px-5 sm:py-4">
                 <h3 className="font-display text-xl">
@@ -433,7 +431,7 @@ export default function CustomersPage() {
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
                 {formError && (
-                  <p className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{formError}</p>
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>
                 )}
               </div>
 
@@ -449,6 +447,134 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CustomerDetail({ selected, onEdit }) {
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="hidden break-words font-display text-xl lg:block">{selected.full_name}</h2>
+        <Button
+          variant="secondary"
+          type="button"
+          className="ml-auto shrink-0"
+          onClick={() => onEdit(selected)}
+        >
+          <Pencil size={14} /> Edit
+        </Button>
+      </div>
+      {selected.requires_higher_collateral && (
+        <div className="flex gap-2 rounded-lg bg-amber-50 p-3 text-amber-900">
+          <AlertTriangle size={18} className="shrink-0" />
+          <p>Rating below 3 — collect a higher collateral deposit before confirming bookings.</p>
+        </div>
+      )}
+      <dl className="space-y-2.5">
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Phone</dt>
+          <dd className="break-words font-medium">{selected.phone || '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Address</dt>
+          <dd className="break-words">{selected.address || '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Email</dt>
+          <dd className="break-all">{selected.email || '—'}</dd>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-[var(--color-muted)]">ID #</dt>
+            <dd className="break-words">{selected.id_number || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Rating</dt>
+            <dd>{selected.rating}/5</dd>
+          </div>
+        </div>
+        {selected.notes ? (
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-[var(--color-muted)]">Notes</dt>
+            <dd className="break-words whitespace-pre-wrap">{selected.notes}</dd>
+          </div>
+        ) : null}
+      </dl>
+      {Number(selected.total_outstanding) > 0.009 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-900">
+          <p className="text-xs uppercase tracking-wide opacity-80">Unpaid (open bookings)</p>
+          <p className="text-lg font-semibold">{formatMoney(selected.total_outstanding)}</p>
+        </div>
+      )}
+      <div className="space-y-1.5 rounded-lg border border-[var(--color-line)] bg-[var(--color-surface)] p-3">
+        <p className="font-medium">
+          Telegram{' '}
+          {selected.telegram_linked ? (
+            <Badge tone="ok">Linked</Badge>
+          ) : (
+            <Badge tone="warn">Not linked yet</Badge>
+          )}
+        </p>
+        <p className="text-sm leading-relaxed text-[var(--color-muted)]">
+          Anyone can open the RentFlow Telegram bot and tap <span className="font-medium">Start</span>.
+          They can send a payment screenshot + transaction ID immediately. No invite code needed. After
+          you approve in Payments, they receive the official receipt on Telegram.
+        </p>
+      </div>
+      {selected.id_card_url && (
+        <a
+          className="inline-block text-[var(--color-brand)] underline"
+          href={assetUrl(selected.id_card_url)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          View KYC document
+        </a>
+      )}
+      <div>
+        <p className="mb-2 font-medium">Recent bookings</p>
+        <ul className="space-y-2">
+          {(selected.bookings || []).map((b) => (
+            <li
+              key={b.id}
+              className="space-y-1 rounded-lg border border-[var(--color-line)] p-2 text-sm"
+            >
+              <div className="flex justify-between gap-2">
+                <span className="capitalize">{labelBookingStatus(b.status)}</span>
+                <span className="text-xs text-[var(--color-muted)]">
+                  {new Date(b.start_date).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="flex flex-wrap justify-between gap-2 text-xs">
+                <span>Due {formatMoney(b.amount_due ?? b.total_amount)}</span>
+                <span className="text-[var(--color-ok)]">Paid {formatMoney(b.paid_total)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={
+                    Number(b.balance_due) > 0.009
+                      ? 'font-semibold text-[var(--color-danger)]'
+                      : 'text-[var(--color-muted)]'
+                  }
+                >
+                  Unpaid {formatMoney(b.balance_due)}
+                </span>
+                <Badge
+                  tone={
+                    b.pay_status === 'paid' ? 'ok' : b.pay_status === 'partial' ? 'warn' : 'danger'
+                  }
+                >
+                  {labelPayStatus(b.pay_status)}
+                </Badge>
+              </div>
+            </li>
+          ))}
+          {!(selected.bookings || []).length && (
+            <li className="text-xs text-[var(--color-muted)]">No bookings yet</li>
+          )}
+        </ul>
+      </div>
     </div>
   );
 }

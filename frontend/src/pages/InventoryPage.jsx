@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { can } from '../lib/roles';
@@ -42,6 +42,7 @@ export default function InventoryPage() {
   const { user } = useAuth();
   const canManage = can.createInventory(user?.role);
   const canAdjust = can.adjustStock(user?.role);
+  const canDelete = can.deleteInventory(user?.role);
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [listPage, setListPage] = useState(1);
@@ -50,6 +51,7 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false);
   const [adjust, setAdjust] = useState(null);
   const [adjustSaving, setAdjustSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = async () => {
     const { data } = await api.get('/inventory');
@@ -147,30 +149,74 @@ export default function InventoryPage() {
     }
   };
 
+  const removeItem = async (item) => {
+    if (!canDelete || deletingId) return;
+    const ok = window.confirm(
+      `Remove “${item.name}” from inventory? You can add real stock again afterward.`
+    );
+    if (!ok) return;
+    setDeletingId(item.id);
+    try {
+      await api.delete(`/inventory/${item.id}`);
+      await load();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const searchField = (
+    <div className="relative w-full sm:w-auto">
+      <Search
+        size={16}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
+      />
+      <input
+        className="w-full rounded-lg border border-[var(--color-line)] bg-white py-2 pl-9 pr-3 text-sm sm:min-w-[14rem]"
+        placeholder="Search by name"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        autoComplete="off"
+        spellCheck={false}
+        aria-label="Search inventory by name"
+      />
+    </div>
+  );
+
+  const itemActions = (item) => (
+    <div className="flex flex-wrap gap-1 sm:justify-end">
+      {canManage && (
+        <Button variant="secondary" onClick={() => openEdit(item)}>
+          <Pencil size={14} /> Edit fees
+        </Button>
+      )}
+      {canAdjust && (
+        <Button variant="secondary" onClick={() => openAdjust(item)}>
+          Update stock
+        </Button>
+      )}
+      {canDelete && (
+        <Button
+          variant="danger"
+          onClick={() => removeItem(item)}
+          disabled={deletingId === item.id}
+        >
+          <Trash2 size={14} />
+          {deletingId === item.id ? 'Removing…' : 'Remove'}
+        </Button>
+      )}
+    </div>
+  );
+
   return (
-    <div>
+    <div className={canManage ? 'pb-20 lg:pb-0' : ''}>
       <PageHeader
         title={canManage ? 'Inventory Management' : 'Inventory lookup'}
         subtitle="Items, stock condition, rates, and damage fees."
         actions={
           <>
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]"
-              />
-              <input
-                className="rounded-lg border border-[var(--color-line)] bg-white pl-9 pr-3 py-2 text-sm min-w-[14rem]"
-                placeholder="Search by name"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-                aria-label="Search inventory by name"
-              />
-            </div>
+            {searchField}
             {canManage && (
-              <Button onClick={openCreate}>
+              <Button onClick={openCreate} className="w-full sm:w-auto">
                 <Plus size={16} /> Add item
               </Button>
             )}
@@ -178,69 +224,113 @@ export default function InventoryPage() {
         }
       />
 
-      <div className="card-panel overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
-            <tr>
-              <th className="p-3">Item</th>
-              <th className="p-3">Available</th>
-              <th className="p-3">Out for rent</th>
-              <th className="p-3">Condition</th>
-              <th className="p-3">Rate / day</th>
-              <th className="p-3">Late fee / day</th>
-              <th className="p-3">Damage fee</th>
-              <th className="p-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagedItems.map((item) => (
-              <tr key={item.id} className="border-b border-[var(--color-line)] last:border-0">
-                <td className="p-3">
-                  <p className="font-medium">{item.name}</p>
+      <div className="card-panel overflow-hidden">
+        {/* Mobile cards */}
+        <ul className="divide-y divide-[var(--color-line)] lg:hidden">
+          {pagedItems.map((item) => (
+            <li key={item.id} className="space-y-3 px-3 py-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="break-words font-medium leading-snug">{item.name}</p>
                   {item.category ? (
-                    <p className="text-xs text-[var(--color-muted)]">{item.category}</p>
+                    <p className="mt-0.5 text-xs text-[var(--color-muted)]">{item.category}</p>
                   ) : null}
-                </td>
-                <td className="p-3">
-                  <span className="font-medium">{item.available_now}</span>
-                  {item.is_low_stock && (
-                    <div className="mt-1">
-                      <Badge tone="warn">Low stock</Badge>
-                    </div>
-                  )}
-                </td>
-                <td className="p-3 font-medium">{item.reserved_now ?? 0}</td>
-                <td className="p-3 text-xs whitespace-nowrap">
-                  <span className="text-[var(--color-ok)]">Good {item.qty_good}</span>
-                  {' · '}
-                  <span className="text-amber-700">Semi {item.qty_semi_damaged}</span>
-                  {' · '}
-                  <span className="text-[var(--color-danger)]">Damaged {item.qty_damaged}</span>
-                </td>
-                <td className="p-3">{formatMoney(item.rental_rate_per_day)}</td>
-                <td className="p-3">{formatMoney(item.late_fee_per_day)}</td>
-                <td className="p-3 text-xs">
-                  <div>Semi {formatMoney(item.damage_fee_semi)}</div>
-                  <div>Full {formatMoney(item.damage_fee_full)}</div>
-                </td>
-                <td className="p-3">
-                  <div className="flex flex-wrap justify-end gap-1">
-                    {canManage && (
-                      <Button variant="secondary" onClick={() => openEdit(item)}>
-                        <Pencil size={14} /> Edit fees
-                      </Button>
-                    )}
-                    {canAdjust && (
-                      <Button variant="secondary" onClick={() => openAdjust(item)}>
-                        Update stock
-                      </Button>
-                    )}
-                  </div>
-                </td>
+                </div>
+                {item.is_low_stock ? <Badge tone="warn">Low stock</Badge> : null}
+              </div>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div>
+                  <dt className="text-xs text-[var(--color-muted)]">Available</dt>
+                  <dd className="font-medium">{item.available_now}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-[var(--color-muted)]">Out for rent</dt>
+                  <dd className="font-medium">{item.reserved_now ?? 0}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-xs text-[var(--color-muted)]">Condition</dt>
+                  <dd className="text-xs">
+                    <span className="text-[var(--color-ok)]">Good {item.qty_good}</span>
+                    {' · '}
+                    <span className="text-amber-700">Semi {item.qty_semi_damaged}</span>
+                    {' · '}
+                    <span className="text-[var(--color-danger)]">Damaged {item.qty_damaged}</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-[var(--color-muted)]">Rate / day</dt>
+                  <dd>{formatMoney(item.rental_rate_per_day)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-[var(--color-muted)]">Late fee / day</dt>
+                  <dd>{formatMoney(item.late_fee_per_day)}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-xs text-[var(--color-muted)]">Damage fees</dt>
+                  <dd className="text-xs">
+                    Semi {formatMoney(item.damage_fee_semi)} · Full{' '}
+                    {formatMoney(item.damage_fee_full)}
+                  </dd>
+                </div>
+              </dl>
+              {(canManage || canAdjust || canDelete) && itemActions(item)}
+            </li>
+          ))}
+        </ul>
+
+        {/* Desktop table — unchanged */}
+        <div className="hidden overflow-x-auto lg:block">
+          <table className="w-full text-sm">
+            <thead className="border-b border-[var(--color-line)] text-left text-[var(--color-muted)]">
+              <tr>
+                <th className="p-3">Item</th>
+                <th className="p-3">Available</th>
+                <th className="p-3">Out for rent</th>
+                <th className="p-3">Condition</th>
+                <th className="p-3">Rate / day</th>
+                <th className="p-3">Late fee / day</th>
+                <th className="p-3">Damage fee</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pagedItems.map((item) => (
+                <tr key={item.id} className="border-b border-[var(--color-line)] last:border-0">
+                  <td className="p-3">
+                    <p className="font-medium">{item.name}</p>
+                    {item.category ? (
+                      <p className="text-xs text-[var(--color-muted)]">{item.category}</p>
+                    ) : null}
+                  </td>
+                  <td className="p-3">
+                    <span className="font-medium">{item.available_now}</span>
+                    {item.is_low_stock && (
+                      <div className="mt-1">
+                        <Badge tone="warn">Low stock</Badge>
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-3 font-medium">{item.reserved_now ?? 0}</td>
+                  <td className="p-3 whitespace-nowrap text-xs">
+                    <span className="text-[var(--color-ok)]">Good {item.qty_good}</span>
+                    {' · '}
+                    <span className="text-amber-700">Semi {item.qty_semi_damaged}</span>
+                    {' · '}
+                    <span className="text-[var(--color-danger)]">Damaged {item.qty_damaged}</span>
+                  </td>
+                  <td className="p-3">{formatMoney(item.rental_rate_per_day)}</td>
+                  <td className="p-3">{formatMoney(item.late_fee_per_day)}</td>
+                  <td className="p-3 text-xs">
+                    <div>Semi {formatMoney(item.damage_fee_semi)}</div>
+                    <div>Full {formatMoney(item.damage_fee_full)}</div>
+                  </td>
+                  <td className="p-3">{itemActions(item)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         {!filteredItems.length && (
           <EmptyState message={search.trim() ? 'No items match this search' : 'No inventory items'} />
         )}
@@ -271,6 +361,14 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
+
+      {canManage && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-white/95 px-4 py-3 backdrop-blur lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <Button onClick={openCreate} className="w-full">
+            <Plus size={16} /> Add item
+          </Button>
+        </div>
+      )}
 
       {canManage && form && (
         <Modal
@@ -433,7 +531,7 @@ function Modal({ title, children, onClose }) {
         <div
           role="dialog"
           aria-modal="true"
-          className="card-panel flex w-full max-w-lg max-h-[min(92dvh,56rem)] flex-col overflow-hidden shadow-xl mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-0"
+          className="card-panel mb-[max(0.5rem,env(safe-area-inset-bottom))] flex max-h-[min(92dvh,56rem)] w-full max-w-lg flex-col overflow-hidden shadow-xl sm:mb-0"
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-line)] px-4 py-3 sm:px-5 sm:py-4">
             <h3 className="font-display text-xl leading-tight">{title}</h3>

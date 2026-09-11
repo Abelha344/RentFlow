@@ -37,8 +37,16 @@ async function migrate() {
       console.log('Seed users created (password: Admin123!)');
     }
 
-    const invCount = await client.query(`SELECT COUNT(*)::int AS c FROM inventory_items`);
-    if (invCount.rows[0].c === 0) {
+    // Never auto-seed demo stock in production (real catalogs only).
+    const skipSeedInventory =
+      process.env.SKIP_SEED_INVENTORY === '1' ||
+      process.env.NODE_ENV === 'production' ||
+      process.env.SEED_INVENTORY === '0';
+
+    const invCount = await client.query(
+      `SELECT COUNT(*)::int AS c FROM inventory_items WHERE is_deleted = FALSE`
+    );
+    if (!skipSeedInventory && invCount.rows[0].c === 0) {
       await client.query(
         `INSERT INTO inventory_items (
            name, category, sku, barcode, total_quantity, rental_rate_per_day,
@@ -52,6 +60,8 @@ async function migrate() {
            ('Portable Sound System', 'AV', 'AV-001', '200000000005', 6, 1500, 24, 6, 0, 0, 2, 300, 8000, 250)`
       );
       console.log('Sample inventory seeded.');
+    } else if (skipSeedInventory && invCount.rows[0].c === 0) {
+      console.log('Skipped sample inventory seed (production / SKIP_SEED_INVENTORY).');
     }
 
     // Open Telegram workflow: payments may arrive before booking is assigned
