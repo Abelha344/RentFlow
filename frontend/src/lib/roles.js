@@ -55,7 +55,7 @@ export const can = {
   setDeposit: (role) => isAdmin(role),
   approvePayment: (role) => isManagerOrAdmin(role),
   viewRevenueCharts: (role) => isManagerOrAdmin(role),
-  deleteCustomer: (role) => isManagerOrAdmin(role),
+  deleteCustomer: (role) => isAdmin(role),
 };
 
 export function roleLabel(role) {
@@ -79,6 +79,7 @@ export const AGENT_HIDDEN = [
   'Settings & Audit',
   'Add / edit catalog items',
   'Stock overrides',
+  'Delete inventory or customers',
   'Cancel bookings',
   'Approve / reject payments',
   'User & role management',

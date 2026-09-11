@@ -43,7 +43,7 @@ router.patch(
 
 router.delete(
   '/:id',
-  authorize('admin', 'manager'),
+  authorize('admin'),
   param('id').isUUID(),
   validate,
   ctrl.softDeleteCustomer

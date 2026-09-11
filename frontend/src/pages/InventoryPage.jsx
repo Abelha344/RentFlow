@@ -6,6 +6,7 @@ import { can } from '../lib/roles';
 import {
   Badge,
   Button,
+  ConfirmDangerDialog,
   EmptyState,
   Input,
   PageHeader,
@@ -53,6 +54,7 @@ export default function InventoryPage() {
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [formError, setFormError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = async () => {
     const { data } = await api.get('/inventory');
@@ -175,15 +177,12 @@ export default function InventoryPage() {
     }
   };
 
-  const removeItem = async (item) => {
-    if (!canDelete || deletingId) return;
-    const ok = window.confirm(
-      `Remove “${item.name}” from inventory? You can add real stock again afterward.`
-    );
-    if (!ok) return;
-    setDeletingId(item.id);
+  const removeItem = async () => {
+    if (!canDelete || !deleteTarget || deletingId) return;
+    setDeletingId(deleteTarget.id);
     try {
-      await api.delete(`/inventory/${item.id}`);
+      await api.delete(`/inventory/${deleteTarget.id}`);
+      setDeleteTarget(null);
       await load();
     } finally {
       setDeletingId(null);
@@ -223,11 +222,11 @@ export default function InventoryPage() {
       {canDelete && (
         <Button
           variant="danger"
-          onClick={() => removeItem(item)}
-          disabled={deletingId === item.id}
+          onClick={() => setDeleteTarget(item)}
+          disabled={Boolean(deletingId)}
         >
           <Trash2 size={14} />
-          {deletingId === item.id ? 'Removing…' : 'Remove'}
+          Remove
         </Button>
       )}
     </div>
@@ -550,6 +549,35 @@ export default function InventoryPage() {
             </div>
           </form>
         </Modal>
+      )}
+      {deleteTarget && (
+        <ConfirmDangerDialog
+          title="Remove this stock item?"
+          subtitle="It will disappear from the live catalog. You can register real stock again anytime."
+          summary={
+            <div>
+              <p className="font-medium break-words">{deleteTarget.name}</p>
+              {deleteTarget.category ? (
+                <p className="mt-0.5 text-sm text-[var(--color-muted)]">{deleteTarget.category}</p>
+              ) : null}
+              <p className="mt-2 text-sm text-[var(--color-muted)]">
+                Available now: <span className="font-medium text-[var(--color-ink)]">{deleteTarget.available_now}</span>
+                {' · '}
+                Rate {formatMoney(deleteTarget.rental_rate_per_day)} / day
+              </p>
+            </div>
+          }
+          bullets={[
+            'Hidden from bookings and inventory lists',
+            'Past rentals and payments stay on record',
+            'Only admins can remove stock items',
+          ]}
+          cancelLabel="Keep item"
+          confirmLabel="Yes, remove stock"
+          loading={deletingId === deleteTarget.id}
+          onCancel={() => !deletingId && setDeleteTarget(null)}
+          onConfirm={removeItem}
+        />
       )}
     </div>
   );

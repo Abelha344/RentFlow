@@ -121,6 +121,86 @@ export function EmptyState({ message }) {
   return <p className="text-sm text-[var(--color-muted)] py-8 text-center">{message}</p>;
 }
 
+/**
+ * Attractive danger confirmation (delete / remove).
+ * Matches Settings terminate dialog style — mobile bottom sheet, desktop centered.
+ */
+export function ConfirmDangerDialog({
+  title,
+  subtitle,
+  summary,
+  bullets = [],
+  confirmLabel = 'Yes, remove',
+  cancelLabel = 'Keep',
+  loading = false,
+  error = '',
+  onConfirm,
+  onCancel,
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-3 sm:items-center sm:p-4">
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-danger-title"
+        className="mb-[max(0.5rem,env(safe-area-inset-bottom))] w-full max-w-md overflow-hidden rounded-2xl border border-[var(--color-line)] bg-white shadow-2xl sm:mb-0"
+      >
+        <div className="bg-gradient-to-br from-[#9f1239] to-[#7f1d1d] px-5 py-5 text-white">
+          <div className="flex items-start gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <div className="min-w-0">
+              <p id="confirm-danger-title" className="font-display text-xl leading-tight">
+                {title}
+              </p>
+              {subtitle && <p className="mt-1 text-sm text-white/80">{subtitle}</p>}
+            </div>
+          </div>
+        </div>
+        <div className="space-y-4 p-5">
+          {summary && (
+            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3">
+              {summary}
+            </div>
+          )}
+          {bullets.length > 0 && (
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-[var(--color-muted)]">
+              {bullets.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+          )}
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          )}
+          <div className="flex flex-col-reverse justify-end gap-2 pt-1 sm:flex-row">
+            <Button type="button" variant="secondary" disabled={loading} onClick={onCancel}>
+              {cancelLabel}
+            </Button>
+            <Button
+              type="button"
+              className="!border-red-700 !bg-red-700 hover:!bg-red-800"
+              disabled={loading}
+              onClick={onConfirm}
+            >
+              {loading ? 'Removing…' : confirmLabel}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function formatMoney(n) {
   return `${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ETB`;
 }

@@ -1,9 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Pencil, Plus, Star } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import { assetUrl } from '../lib/assets';
-import { Badge, Button, EmptyState, Input, PageHeader, Textarea, formatMoney } from '../components/ui';
+import {
+  Badge,
+  Button,
+  ConfirmDangerDialog,
+  EmptyState,
+  Input,
+  PageHeader,
+  Textarea,
+  formatMoney,
+} from '../components/ui';
 import { labelBookingStatus, labelPayStatus } from '../lib/labels';
+import { useAuth } from '../context/AuthContext';
+import { can } from '../lib/roles';
 
 const emptyForm = {
   full_name: '',
@@ -18,6 +29,8 @@ const emptyForm = {
 const LIST_PAGE_SIZE = 10;
 
 export default function CustomersPage() {
+  const { user } = useAuth();
+  const canDelete = can.deleteCustomer(user?.role);
   const [customers, setCustomers] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -29,6 +42,9 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [listSearch, setListSearch] = useState('');
   const [listPage, setListPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const isEditing = Boolean(editingId);
 
@@ -100,6 +116,22 @@ export default function CustomersPage() {
     setIdCard(null);
     setExistingKyc(null);
     setFormError('');
+  };
+
+  const confirmDeleteCustomer = async () => {
+    if (!canDelete || !deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api.delete(`/customers/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      setSelected(null);
+      await load();
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || 'Could not delete customer');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const save = async (e) => {
@@ -297,7 +329,15 @@ export default function CustomersPage() {
             {!selected ? (
               <EmptyState message="Select a customer to view KYC & history" />
             ) : (
-              <CustomerDetail selected={selected} onEdit={openEdit} />
+              <CustomerDetail
+                selected={selected}
+                onEdit={openEdit}
+                canDelete={canDelete}
+                onDelete={() => {
+                  setDeleteError('');
+                  setDeleteTarget(selected);
+                }}
+              />
             )}
           </div>
         </div>
@@ -327,7 +367,15 @@ export default function CustomersPage() {
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <CustomerDetail selected={selected} onEdit={openEdit} />
+              <CustomerDetail
+                selected={selected}
+                onEdit={openEdit}
+                canDelete={canDelete}
+                onDelete={() => {
+                  setDeleteError('');
+                  setDeleteTarget(selected);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -447,23 +495,54 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
+
+      {deleteTarget && (
+        <ConfirmDangerDialog
+          title="Delete this customer?"
+          subtitle="They will be removed from the active customer list."
+          summary={
+            <div>
+              <p className="break-words font-medium">{deleteTarget.full_name}</p>
+              <p className="mt-1 text-sm text-[var(--color-muted)]">
+                {deleteTarget.phone || 'No phone'}
+                {deleteTarget.address ? ` · ${deleteTarget.address}` : ''}
+              </p>
+            </div>
+          }
+          bullets={[
+            'Hidden from search and new bookings',
+            'Past bookings and payments stay on record',
+            'Only admins can delete customers — agents may edit only',
+          ]}
+          cancelLabel="Keep customer"
+          confirmLabel="Yes, delete customer"
+          loading={deleting}
+          error={deleteError}
+          onCancel={() => !deleting && setDeleteTarget(null)}
+          onConfirm={confirmDeleteCustomer}
+        />
+      )}
     </div>
   );
 }
 
-function CustomerDetail({ selected, onEdit }) {
+function CustomerDetail({ selected, onEdit, canDelete = false, onDelete }) {
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <h2 className="hidden break-words font-display text-xl lg:block">{selected.full_name}</h2>
-        <Button
-          variant="secondary"
-          type="button"
-          className="ml-auto shrink-0"
-          onClick={() => onEdit(selected)}
-        >
-          <Pencil size={14} /> Edit
-        </Button>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h2 className="hidden min-w-0 flex-1 break-words font-display text-xl lg:block">
+          {selected.full_name}
+        </h2>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="secondary" type="button" onClick={() => onEdit(selected)}>
+            <Pencil size={14} /> Edit
+          </Button>
+          {canDelete && (
+            <Button variant="danger" type="button" onClick={onDelete}>
+              <Trash2 size={14} /> Delete
+            </Button>
+          )}
+        </div>
       </div>
       {selected.requires_higher_collateral && (
         <div className="flex gap-2 rounded-lg bg-amber-50 p-3 text-amber-900">
