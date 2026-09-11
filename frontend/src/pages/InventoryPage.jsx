@@ -52,6 +52,7 @@ export default function InventoryPage() {
   const [adjust, setAdjust] = useState(null);
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [formError, setFormError] = useState('');
 
   const load = async () => {
     const { data } = await api.get('/inventory');
@@ -84,11 +85,13 @@ export default function InventoryPage() {
 
   const openCreate = () => {
     setEditingId(null);
+    setFormError('');
     setForm({ ...emptyForm });
   };
 
   const openEdit = (item) => {
     setEditingId(item.id);
+    setFormError('');
     setForm({
       name: item.name || '',
       category: item.category || 'Other',
@@ -105,16 +108,39 @@ export default function InventoryPage() {
   const saveItem = async (e) => {
     e.preventDefault();
     if (!canManage || !form || saving) return;
+    setFormError('');
     setSaving(true);
     try {
+      const payload = {
+        name: String(form.name || '').trim(),
+        category: form.category || 'Other',
+        total_quantity: Number(form.total_quantity) || 0,
+        rental_rate_per_day: Number(form.rental_rate_per_day) || 0,
+        buffer_time_hours: Number(form.buffer_time_hours) || 24,
+        min_stock_threshold: Number(form.min_stock_threshold) || 0,
+        damage_fee_semi: Number(form.damage_fee_semi) || 0,
+        damage_fee_full: Number(form.damage_fee_full) || 0,
+        late_fee_per_day: Number(form.late_fee_per_day) || 0,
+      };
+      if (!payload.name) {
+        setFormError('Name is required');
+        return;
+      }
       if (editingId) {
-        await api.patch(`/inventory/${editingId}`, form);
+        await api.patch(`/inventory/${editingId}`, payload);
       } else {
-        await api.post('/inventory', form);
+        await api.post('/inventory', payload);
       }
       setForm(null);
       setEditingId(null);
       await load();
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.errors?.[0]?.message ||
+        err.message ||
+        'Could not save item';
+      setFormError(msg);
     } finally {
       setSaving(false);
     }
@@ -445,6 +471,11 @@ export default function InventoryPage() {
                 <p className="sm:col-span-2 text-xs text-[var(--color-muted)]">
                   Damage fees: charged on return × number of damaged units. Set 0 = no penalty.
                 </p>
+                {formError && (
+                  <p className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {formError}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--color-line)] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">

@@ -68,34 +68,59 @@ async function createItem(req, res, next) {
     } = req.body;
 
     const qty = Number(total_quantity) || 0;
-    // Internal only — never shown in the product UI
-    const finalSku = generateSku(category || name);
-    const finalBarcode = generateBarcode();
+    const rate = Number(rental_rate_per_day) || 0;
+    const bufferHours = Number(buffer_time_hours) || 24;
+    const minStock = Number(min_stock_threshold) || 0;
+    const feeSemi = Number(damage_fee_semi) || 0;
+    const feeFull = Number(damage_fee_full) || 0;
+    const lateFee = Number(late_fee_per_day) || 0;
 
-    const { rows } = await query(
-      `INSERT INTO inventory_items (
-         name, category, sku, barcode, total_quantity, rental_rate_per_day,
-         buffer_time_hours, qty_good, qty_semi_damaged, qty_damaged,
-         min_stock_threshold, damage_fee_semi, damage_fee_full, late_fee_per_day
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$5,0,0,$8,$9,$10,$11)
-       RETURNING id, name, category, total_quantity, rental_rate_per_day,
-         buffer_time_hours, qty_good, qty_semi_damaged, qty_damaged,
-         min_stock_threshold, damage_fee_semi, damage_fee_full, late_fee_per_day,
-         created_at, updated_at`,
-      [
-        name,
-        category || null,
-        finalSku,
-        finalBarcode,
-        qty,
-        rental_rate_per_day,
-        buffer_time_hours,
-        min_stock_threshold,
-        damage_fee_semi,
-        damage_fee_full,
-        late_fee_per_day,
-      ]
-    );
+    // Internal only — never shown in the product UI
+    let rows;
+    let lastErr;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const finalSku = generateSku(category || name);
+      const finalBarcode = generateBarcode();
+      try {
+        const result = await query(
+          `INSERT INTO inventory_items (
+             name, category, sku, barcode, total_quantity, rental_rate_per_day,
+             buffer_time_hours, qty_good, qty_semi_damaged, qty_damaged,
+             min_stock_threshold, damage_fee_semi, damage_fee_full, late_fee_per_day
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$5,0,0,$8,$9,$10,$11)
+           RETURNING id, name, category, total_quantity, rental_rate_per_day,
+             buffer_time_hours, qty_good, qty_semi_damaged, qty_damaged,
+             min_stock_threshold, damage_fee_semi, damage_fee_full, late_fee_per_day,
+             created_at`,
+          [
+            name,
+            category || null,
+            finalSku,
+            finalBarcode,
+            qty,
+            rate,
+            bufferHours,
+            minStock,
+            feeSemi,
+            feeFull,
+            lateFee,
+          ]
+        );
+        rows = result.rows;
+        lastErr = null;
+        break;
+      } catch (err) {
+        // Soft-deleted seed rows still occupy UNIQUE sku/barcode — retry with new codes
+        if (err.code === '23505') {
+          lastErr = err;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (lastErr || !rows?.[0]) {
+      throw lastErr || new Error('Could not create inventory item');
+    }
 
     await writeAuditLog({
       userId: req.user.id,

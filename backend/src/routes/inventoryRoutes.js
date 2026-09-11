@@ -26,9 +26,9 @@ router.get(
 router.post(
   '/',
   authorize('admin', 'manager'),
-  body('name').trim().notEmpty(),
-  body('total_quantity').isInt({ min: 0 }),
-  body('rental_rate_per_day').isFloat({ min: 0 }),
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('total_quantity').isInt({ min: 0 }).withMessage('Quantity must be a whole number ≥ 0'),
+  body('rental_rate_per_day').isFloat({ min: 0 }).withMessage('Rate must be a number ≥ 0'),
   validate,
   ctrl.createItem
 );
