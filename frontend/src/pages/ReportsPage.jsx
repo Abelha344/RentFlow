@@ -484,9 +484,31 @@ export default function ReportsPage() {
     [series, period, appliedCustom, reportYear]
   );
   const isMonthlyCalendar = period === 'monthly';
+  const [isMobileChart, setIsMobileChart] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const sync = () => setIsMobileChart(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
   const xAxisConfig = useMemo(() => {
     const n = series.length;
     if (period === 'monthly' || n <= 12) {
+      // Desktop: horizontal month labels (unchanged). Mobile: diagonal so Jan–Dec stay readable.
+      if (isMobileChart) {
+        return {
+          interval: 0,
+          angle: -45,
+          height: 72,
+          fontSize: 10,
+          textAnchor: 'end',
+          minTickGap: 0,
+          dy: 10,
+        };
+      }
       return {
         interval: 0,
         angle: 0,
@@ -518,7 +540,7 @@ export default function ReportsPage() {
       minTickGap: 20,
       dy: 6,
     };
-  }, [period, series.length]);
+  }, [period, series.length, isMobileChart]);
 
   const dailyRangeNote = useMemo(() => {
     if (period !== 'daily' || !series.length) return '';
@@ -728,7 +750,11 @@ export default function ReportsPage() {
             </div>
           )}
 
-          <div className={`${period === 'daily' ? 'h-[22rem]' : 'h-80'}`}>
+          <div
+            className={`${
+              period === 'daily' ? 'h-[22rem]' : isMobileChart && isMonthlyCalendar ? 'h-[22rem]' : 'h-80'
+            }`}
+          >
             {series.length && (hasRevenue || isMonthlyCalendar) ? (
               <div className="h-full rounded-xl bg-gradient-to-b from-[#e8f3f0] to-white px-1 pt-2 pb-1">
                 <ResponsiveContainer width="100%" height="100%">
@@ -738,7 +764,14 @@ export default function ReportsPage() {
                       top: 22,
                       right: 12,
                       left: 0,
-                      bottom: period === 'daily' ? 28 : xAxisConfig.angle ? 12 : 8,
+                      bottom:
+                        period === 'daily'
+                          ? 28
+                          : xAxisConfig.angle
+                            ? isMobileChart
+                              ? 20
+                              : 12
+                            : 8,
                     }}
                   >
                     <defs>
