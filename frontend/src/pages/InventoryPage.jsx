@@ -207,21 +207,36 @@ export default function InventoryPage() {
     </div>
   );
 
-  const itemActions = (item) => (
-    <div className="flex flex-wrap gap-1 sm:justify-end">
+  const itemActions = (item, { stacked = false } = {}) => (
+    <div
+      className={
+        stacked
+          ? 'grid grid-cols-1 gap-2 sm:grid-cols-2'
+          : 'flex flex-wrap gap-1 sm:justify-end'
+      }
+    >
       {canManage && (
-        <Button variant="secondary" onClick={() => openEdit(item)}>
+        <Button
+          variant="secondary"
+          className={stacked ? 'w-full' : ''}
+          onClick={() => openEdit(item)}
+        >
           <Pencil size={14} /> Edit fees
         </Button>
       )}
       {canAdjust && (
-        <Button variant="secondary" onClick={() => openAdjust(item)}>
+        <Button
+          variant="secondary"
+          className={stacked ? 'w-full' : ''}
+          onClick={() => openAdjust(item)}
+        >
           Update stock
         </Button>
       )}
       {canDelete && (
         <Button
           variant="danger"
+          className={stacked ? 'w-full sm:col-span-2' : ''}
           onClick={() => setDeleteTarget(item)}
           disabled={Boolean(deletingId)}
         >
@@ -233,7 +248,7 @@ export default function InventoryPage() {
   );
 
   return (
-    <div className={canManage ? 'pb-20 lg:pb-0' : ''}>
+    <div className={canManage ? 'pb-24 lg:pb-0' : ''}>
       <PageHeader
         title={canManage ? 'Inventory Management' : 'Inventory lookup'}
         subtitle="Items, stock condition, rates, and damage fees."
@@ -241,7 +256,7 @@ export default function InventoryPage() {
           <>
             {searchField}
             {canManage && (
-              <Button onClick={openCreate} className="w-full sm:w-auto">
+              <Button onClick={openCreate} className="hidden w-full sm:w-auto lg:inline-flex">
                 <Plus size={16} /> Add item
               </Button>
             )}
@@ -249,62 +264,134 @@ export default function InventoryPage() {
         }
       />
 
-      <div className="card-panel overflow-hidden">
-        {/* Mobile cards */}
-        <ul className="divide-y divide-[var(--color-line)] lg:hidden">
-          {pagedItems.map((item) => (
-            <li key={item.id} className="space-y-3 px-3 py-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="break-words font-medium leading-snug">{item.name}</p>
-                  {item.category ? (
-                    <p className="mt-0.5 text-xs text-[var(--color-muted)]">{item.category}</p>
-                  ) : null}
+      {/* Mobile: same workflow as desktop — searchable catalog + full actions */}
+      <div className="space-y-3 lg:hidden">
+        {!filteredItems.length ? (
+          <div className="card-panel">
+            <EmptyState
+              message={search.trim() ? 'No items match this search' : 'No inventory items'}
+            />
+          </div>
+        ) : (
+          pagedItems.map((item) => (
+            <article
+              key={item.id}
+              className="overflow-hidden rounded-2xl border border-[var(--color-line)] bg-white shadow-sm"
+            >
+              <div className="border-b border-[var(--color-line)] bg-gradient-to-br from-[#0f1c1a]/[0.04] to-transparent px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="break-words font-display text-xl leading-tight text-[var(--color-ink)]">
+                      {item.name}
+                    </h2>
+                    {item.category ? (
+                      <p className="mt-0.5 text-xs uppercase tracking-wide text-[var(--color-muted)]">
+                        {item.category}
+                      </p>
+                    ) : null}
+                  </div>
+                  {item.is_low_stock ? <Badge tone="warn">Low stock</Badge> : null}
                 </div>
-                {item.is_low_stock ? <Badge tone="warn">Low stock</Badge> : null}
               </div>
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                <div>
-                  <dt className="text-xs text-[var(--color-muted)]">Available</dt>
-                  <dd className="font-medium">{item.available_now}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--color-muted)]">Out for rent</dt>
-                  <dd className="font-medium">{item.reserved_now ?? 0}</dd>
-                </div>
-                <div className="col-span-2">
-                  <dt className="text-xs text-[var(--color-muted)]">Condition</dt>
-                  <dd className="text-xs">
-                    <span className="text-[var(--color-ok)]">Good {item.qty_good}</span>
-                    {' · '}
-                    <span className="text-amber-700">Semi {item.qty_semi_damaged}</span>
-                    {' · '}
-                    <span className="text-[var(--color-danger)]">Damaged {item.qty_damaged}</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--color-muted)]">Rate / day</dt>
-                  <dd>{formatMoney(item.rental_rate_per_day)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--color-muted)]">Late fee / day</dt>
-                  <dd>{formatMoney(item.late_fee_per_day)}</dd>
-                </div>
-                <div className="col-span-2">
-                  <dt className="text-xs text-[var(--color-muted)]">Damage fees</dt>
-                  <dd className="text-xs">
-                    Semi {formatMoney(item.damage_fee_semi)} · Full{' '}
-                    {formatMoney(item.damage_fee_full)}
-                  </dd>
-                </div>
-              </dl>
-              {(canManage || canAdjust || canDelete) && itemActions(item)}
-            </li>
-          ))}
-        </ul>
 
-        {/* Desktop table — unchanged */}
-        <div className="hidden overflow-x-auto lg:block">
+              <div className="grid grid-cols-2 gap-px bg-[var(--color-line)]">
+                <div className="bg-white px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                    Available
+                  </p>
+                  <p className="mt-0.5 font-display text-2xl leading-none">{item.available_now}</p>
+                </div>
+                <div className="bg-white px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                    Out for rent
+                  </p>
+                  <p className="mt-0.5 font-display text-2xl leading-none">
+                    {item.reserved_now ?? 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 px-4 py-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                    Condition
+                  </p>
+                  <p className="mt-1 text-sm">
+                    <span className="font-medium text-[var(--color-ok)]">Good {item.qty_good}</span>
+                    <span className="text-[var(--color-muted)]"> · </span>
+                    <span className="font-medium text-amber-700">Semi {item.qty_semi_damaged}</span>
+                    <span className="text-[var(--color-muted)]"> · </span>
+                    <span className="font-medium text-[var(--color-danger)]">
+                      Damaged {item.qty_damaged}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                      Rate / day
+                    </p>
+                    <p className="mt-0.5 font-medium">{formatMoney(item.rental_rate_per_day)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                      Late fee / day
+                    </p>
+                    <p className="mt-0.5 font-medium">{formatMoney(item.late_fee_per_day)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                      Damage fee
+                    </p>
+                    <p className="mt-0.5 text-sm">
+                      Semi {formatMoney(item.damage_fee_semi)}
+                      <span className="text-[var(--color-muted)]"> · </span>
+                      Full {formatMoney(item.damage_fee_full)}
+                    </p>
+                  </div>
+                </div>
+
+                {(canManage || canAdjust || canDelete) && (
+                  <div className="border-t border-[var(--color-line)] pt-3">
+                    {itemActions(item, { stacked: true })}
+                  </div>
+                )}
+              </div>
+            </article>
+          ))
+        )}
+
+        {filteredItems.length > LIST_PAGE_SIZE && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--color-line)] bg-white px-3 py-3">
+            <p className="text-xs text-[var(--color-muted)]">
+              Page {safeListPage} of {listTotalPages} · {filteredItems.length} items
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={safeListPage <= 1}
+                onClick={() => setListPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft size={14} /> Previous
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={safeListPage >= listTotalPages}
+                onClick={() => setListPage((p) => Math.min(listTotalPages, p + 1))}
+              >
+                Next <ChevronRight size={14} />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table — unchanged */}
+      <div className="card-panel hidden overflow-hidden lg:block">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-[var(--color-line)] text-left text-[var(--color-muted)]">
               <tr>
@@ -355,7 +442,6 @@ export default function InventoryPage() {
             </tbody>
           </table>
         </div>
-
         {!filteredItems.length && (
           <EmptyState message={search.trim() ? 'No items match this search' : 'No inventory items'} />
         )}
@@ -499,7 +585,7 @@ export default function InventoryPage() {
               <p className="text-sm text-[var(--color-muted)]">
                 Fix warehouse count only. Customer penalties → Edit fees.
               </p>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <Input
                   label="Good"
                   type="number"

@@ -515,13 +515,14 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div>
+    <div className="pb-24 lg:pb-0">
       <PageHeader
         title="Payments & Receipts"
         subtitle="Next step only: deposit → rental after return → refund leftover deposit"
         actions={
           <Button
             disabled={saving}
+            className="hidden lg:inline-flex"
             onClick={() => {
               if (selected) {
                 openRecord(selected, 'auto');
@@ -675,7 +676,118 @@ export default function PaymentsPage() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="lg:col-span-3 card-panel overflow-x-auto">
-          <table className="w-full text-sm">
+          {/* Mobile: stacked cards */}
+          <ul className="divide-y divide-[var(--color-line)] lg:hidden">
+            {visibleBookings.map((b) => {
+              const depositUnpaid = Number(b.deposit_unpaid || 0);
+              const rentalUnpaid = Number(b.rental_unpaid || 0);
+              const refundable = Number(b.deposit_refundable || 0);
+              const next = nextPaymentAction(b);
+              return (
+                <li key={b.id}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className={`w-full px-3 py-3 text-left transition hover:bg-[var(--color-surface)] ${
+                      selectedId === b.id ? 'bg-[var(--color-surface)]' : ''
+                    }`}
+                    onClick={() => setSelectedId(b.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedId(b.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 flex-1 break-words font-medium leading-snug">
+                        {b.customer_name}
+                      </p>
+                      <Badge tone={payTone(b.pay_status)}>{labelPayStatus(b.pay_status)}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">
+                      {labelBookingStatus(b.status)} · {dayjs(b.start_date).format('MMM D')} →{' '}
+                      {dayjs(b.end_date).format('MMM D')}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                          Deposit
+                        </p>
+                        {depositUnpaid > 0.009 ? (
+                          <p className="mt-0.5 font-semibold text-[var(--color-danger)]">
+                            Unpaid {formatMoney(depositUnpaid)}
+                          </p>
+                        ) : refundable > 0.009 ? (
+                          <p className="mt-0.5 font-medium text-amber-800">
+                            Refund {formatMoney(refundable)}
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 text-[var(--color-ok)]">Paid</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-[var(--color-muted)]">
+                          Rental unpaid
+                        </p>
+                        <p
+                          className={`mt-0.5 font-semibold ${
+                            rentalUnpaid > 0.009
+                              ? 'text-[var(--color-danger)]'
+                              : 'text-[var(--color-ok)]'
+                          }`}
+                        >
+                          {formatMoney(rentalUnpaid > 0.009 ? rentalUnpaid : 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                      {next.intent ? (
+                        <div className="space-y-1">
+                          <Button
+                            type="button"
+                            variant={next.primary ? 'primary' : 'secondary'}
+                            disabled={saving}
+                            className="w-full"
+                            onClick={() => openRecord(b, next.intent)}
+                          >
+                            {next.label}
+                          </Button>
+                          {next.hint && (
+                            <p className="text-[11px] text-[var(--color-muted)] leading-tight">
+                              {next.hint}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <p
+                            className={`text-xs font-medium ${
+                              next.kind === 'done'
+                                ? 'text-[var(--color-ok)]'
+                                : next.kind === 'waiting'
+                                  ? 'text-amber-800'
+                                  : 'text-[var(--color-muted)]'
+                            }`}
+                          >
+                            {next.label}
+                          </p>
+                          {next.hint && (
+                            <p className="text-[11px] text-[var(--color-muted)] leading-tight">
+                              {next.hint}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Desktop: unchanged table */}
+          <table className="hidden w-full text-sm lg:table">
             <thead className="text-left text-[var(--color-muted)] border-b border-[var(--color-line)]">
               <tr>
                 <th className="p-3">Customer</th>
@@ -1010,6 +1122,22 @@ export default function PaymentsPage() {
             </>
           )}
         </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-line)] bg-white/95 px-4 py-3 backdrop-blur lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <Button
+          disabled={saving}
+          className="w-full"
+          onClick={() => {
+            if (selected) {
+              openRecord(selected, 'auto');
+              return;
+            }
+            setNotice('Select a booking first, then record payment.');
+          }}
+        >
+          Record payment
+        </Button>
       </div>
 
       {showForm && (
